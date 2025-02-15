@@ -29,7 +29,7 @@ void compressTextFile(const char* inputFilename) {
 
     char* extension = strrchr(outputFilename, '.');
     if (extension != NULL) {
-        *extension = '\0'; // ??? ????? ????
+        *extension = '\0';
     }
 
     strcat(outputFilename, ".txt-Compressed");
@@ -114,7 +114,7 @@ void decompressTextFile(const char* inputFilename) {
 
     char* extension = strrchr(outputFilename, '-');
     if (extension != NULL) {
-        *extension = '\0'; // ??? ????? ???? ????? ????
+        *extension = '\0';
     }
 
     FILE* outputFile = fopen(outputFilename, "w");
@@ -129,60 +129,59 @@ void decompressTextFile(const char* inputFilename) {
     unsigned int currentCode = 256;
     unsigned int tableSize = 256;
     unsigned int* codesTable = (unsigned int*)malloc(MAX_TABLE_SIZE * sizeof(unsigned int));
+    char** phrasesTable = (char**)malloc(MAX_TABLE_SIZE * sizeof(char*));
     char* currentPhrase = (char*)malloc(MAX_TABLE_SIZE * sizeof(char));
-    unsigned int currentPhraseLength = 0;
     unsigned int previousCode;
-    unsigned int currentCodeIndex = 0;
+    unsigned int currentCodeIndex;
     unsigned int i;
 
     for (i = 0; i < tableSize; i++) {
-        codesTable[i] = i;
+        phrasesTable[i] = (char*)malloc(2 * sizeof(char));
+        phrasesTable[i][0] = (char)i;
+        phrasesTable[i][1] = '\0';
     }
 
     fread(&previousCode, sizeof(unsigned int), 1, inputFile);
-    currentPhrase[currentPhraseLength] = previousCode;
-    currentPhraseLength++;
-    fprintf(outputFile, "%c", previousCode);
+    fprintf(outputFile, "%s", phrasesTable[previousCode]);
+    strcpy(currentPhrase, phrasesTable[previousCode]);
 
-    while (fread(&currentCode, sizeof(unsigned int), 1, inputFile) != 0) {
+    while (fread(&currentCode, sizeof(unsigned int), 1, inputFile) == 1) {
         if (currentCode < tableSize) {
-            currentCodeIndex = currentCode;
+            fprintf(outputFile, "%s", phrasesTable[currentCode]);
+            strcpy(currentPhrase, phrasesTable[currentCode]);
         } else {
-            currentPhrase[currentPhraseLength] = previousCode;
-            currentCodeIndex = previousCode;
+            strcat(currentPhrase, phrasesTable[previousCode]);
+            fprintf(outputFile, "%s", currentPhrase);
         }
 
-        while (currentCodeIndex >= 256) {
-            fprintf(outputFile, "%c", codesTable[currentCodeIndex]);
-            currentCodeIndex = codesTable[currentCodeIndex];
-        }
-
-        fprintf(outputFile, "%c", currentCodeIndex);
-
-        if (previousCode < MAX_TABLE_SIZE) {
-            codesTable[tableSize] = previousCode;
+        if (tableSize < MAX_TABLE_SIZE) {
+            phrasesTable[tableSize] = (char*)malloc((strlen(phrasesTable[previousCode]) + 2) * sizeof(char));
+            strcpy(phrasesTable[tableSize], phrasesTable[previousCode]);
+            strncat(phrasesTable[tableSize], phrasesTable[currentCode], 1);
             tableSize++;
         }
 
         previousCode = currentCode;
-        currentPhraseLength = 0;
     }
 
     SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN);
     printf("File decompressed successfully. Output file: %s\n", outputFilename);
     SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 
+    for (i = 0; i < tableSize; i++) {
+        free(phrasesTable[i]);
+    }
     free(currentPhrase);
     free(codesTable);
+    free(phrasesTable);
     fclose(inputFile);
     fclose(outputFile);
 }
 
-
 void displayHelpMenu() {
     printf("Options:\n");
-    printf("1. Compress a text file(This option compresses the file whose address you enter).\n");
-    printf("2. Decompress a text file(This option decompresses the file whose address you enter).\n");
+    printf("1. Compress a text file (This option compresses the file whose address you enter).\n");
+    printf("2. Decompress a text file (This option decompresses the file whose address you enter).\n");
     printf("3. Exit.\n");
 }
 
@@ -194,7 +193,7 @@ int main() {
         displayHelpMenu();
         printf("Enter an option: ");
         scanf("%d", &option);
-        getchar(); 
+        getchar();
         
         switch (option) {
             case 1:
